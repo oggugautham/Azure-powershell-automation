@@ -1,16 +1,21 @@
 param(
   [string]$RgName = "rg-pwsh-demo",
   [string]$Location = "canadacentral",
-  [string]$VmName = "demo-vm-from-ps"
+  [string]$VmName = "demo-vm-from-ps",
+  [string]$AdminUsername = "azureuser",
+  [string]$AdminPassword = "P@ssw0rd123!"  # use a strong one in real use
 )
 
-# Create RG if needed
+# Convert password to secure string
+$securePassword = ConvertTo-SecureString $AdminPassword -AsPlainText -Force
+$cred = New-Object System.Management.Automation.PSCredential ($AdminUsername, $securePassword)
+
+# Create RG if it doesn't exist
 if (-not (Get-AzResourceGroup -Name $RgName -ErrorAction SilentlyContinue)) {
     New-AzResourceGroup -Name $RgName -Location $Location
 }
 
-# Simple VM (Ubuntu 22.04, Standard_B1s)
-$cred = Get-Credential -Message "Local VM admin"
+# Create VM
 New-AzVM -ResourceGroupName $RgName `
          -Name $VmName `
          -Location $Location `
