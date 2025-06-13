@@ -23,5 +23,7 @@ jobs:
       uses: Azure/powershell@v1      # GitHub Action for Az PowerShell :contentReference[oaicite:2]{index=2}
       with:
         inlineScript: |
-          ./create-vm.ps1 -RgName 'rg-pwsh-demo' -VmName 'demo-vm-ci'
+          Import-Module Az.Accounts
+          Connect-AzAccount -Identity
+          ./create-vm.ps1 -RgName 'rg-pwsh-demo' -VmName 'demo-vm-ci' -Location 'westus2'
         azPSVersion: "latest"
