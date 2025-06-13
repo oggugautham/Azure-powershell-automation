@@ -2,29 +2,49 @@ name: deploy-vm-azps
 
 on:
   push:
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
-  id-token: write        # OIDC
+  id-token: write   # Needed for OIDC
   contents: read
+
+env:
+  RG_NAME:     rg-pwsh-demo
+  VM_NAME:     demo-vm-ci
+  LOCATION:    westus2
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v4
 
-    # 1️⃣  OIDC login + fully-loaded Az PowerShell session
-    - name: Azure login (OIDC, Az session)
+    # 1️⃣  Secure, password-less Azure login (OIDC) + Az session preload
+    - name: Azure login (OIDC + Az PowerShell session)
       uses: Azure/login@v2
       with:
         client-id:       ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        enable-AzPSSession: true    # ← this downloads Az and keeps auth in the same shell
+        enable-AzPSSession: true      # Makes Az modules available & keeps auth
 
-    # 2️⃣  Run the script in that same session — no extra Connect-AzAccount needed
-    - name: Run create-vm.ps1
+    # 2️⃣  (Optional) Cache PS modules to speed up script-side install
+    - name: Cache PowerShell modules
+      uses: actions/cache@v4
+      with:
+        path: ~/.local/share/powershell/Modules
+        key: ${{ runner.os }}-azmodules-v10
+
+    # 3️⃣  Run the deployment script
+    - name: Deploy / verify VM
       shell: pwsh
+      env:
+        VM_ADMIN_USER: azureuser
+        VM_ADMIN_PWD:  ${{ secrets.VM_ADMIN_PWD }}   # 👉 store this secret in repo settings
       run: |
-        ./create-vm.ps1 -RgName 'rg-pwsh-demo' -VmName 'demo-vm-ci' -Location 'westus2'
+        ./create-vm.ps1 `
+            -RgName   $env:RG_NAME `
+            -VmName   $env:VM_NAME `
+            -Location $env:LOCATION
