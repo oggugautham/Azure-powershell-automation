@@ -5,29 +5,34 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write         # required for OIDC
+  id-token: write       # OIDC
   contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
     - uses: actions/checkout@v4
 
-    # 1️⃣ Log in with OIDC and prime an Az PowerShell session
+    # 1️⃣ OIDC login – no secrets or passwords needed
     - name: Azure Login (OIDC)
       uses: Azure/login@v2
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        enable-AzPSSession: true        # ← **critical line**
 
-    # 2️⃣ Run your PowerShell script — no Connect-AzAccount needed
+    # 2️⃣ Run your PowerShell script in Azure/powershell@v1
     - name: Run create-vm.ps1
-      run: |
-        ./create-vm.ps1 `
-          -RgName 'rg-pwsh-demo' `
-          -VmName 'demo-vm-ci' `
-          -Location 'westus2'
-      shell: pwsh
+      uses: Azure/powershell@v1
+      with:
+        azPSVersion: "latest"          # installs / loads Az modules for you
+        inlineScript: |
+          # Import Az.* modules explicitly (defensive)
+          Import-Module Az.Accounts,Az.Resources,Az.Compute -ErrorAction Stop
+          # Everything is already logged-in by Azure/login, no Connect-AzAccount calls needed
+          ./create-vm.ps1 `
+            -RgName 'rg-pwsh-demo' `
+            -VmName 'demo-vm-ci' `
+            -Location 'westus2'
