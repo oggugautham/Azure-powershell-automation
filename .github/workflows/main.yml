@@ -6,44 +6,38 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write
+  id-token: write          # OIDC token for Az modules
   contents: read
 
 env:
   RG_NAME:  rg-pwsh-demo
   VM_NAME:  demo-vm-ci
-  LOCATION: westus2          # change if you like
+  LOCATION: westus2        # change region if needed
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    # 1️⃣  Secure OIDC login
-    - name: Azure login
-      uses: Azure/login@v2
-      with:
-        client-id:       ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # 1️⃣  Log in with OIDC **and** prime Az PowerShell
+      - name: Azure login (OIDC + Az)
+        uses: Azure/login@v2
+        with:
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true   # ← critical for PowerShell
 
-    # 2️⃣  Install Az modules once per runner
-    - name: Install Az modules
-      shell: pwsh
-      run: |
-        Install-Module Az.Accounts,Az.Resources,Az.Compute `
-                       -Scope CurrentUser -Force -Repository PSGallery
-
-    # 3️⃣  Run deploy script
-    - name: Deploy VM
-      shell: pwsh
-      env:
-        VM_ADMIN_PWD: ${{ secrets.VM_ADMIN_PWD }}   # required
-        # VM_ADMIN_USER optional (defaults to azureuser)
-      run: |
-        ./create-vm.ps1 `
-          -RgName   $env:RG_NAME `
-          -VmName   $env:VM_NAME `
-          -Location $env:LOCATION
+      # 2️⃣  Deploy the VM
+      - name: Deploy VM
+        shell: pwsh
+        env:
+          VM_ADMIN_PWD:  ${{ secrets.VM_ADMIN_PWD }}   # required
+          VM_ADMIN_USER: ${{ secrets.VM_ADMIN_USER }}  # optional (defaults to azureuser)
+        run: |
+          ./create-vm.ps1 `
+            -RgName   $env:RG_NAME `
+            -VmName   $env:VM_NAME `
+            -Location $env:LOCATION
