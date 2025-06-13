@@ -1,9 +1,11 @@
 name: PS-VM-Create
 
-on: [push]
+on:
+  push:
+  workflow_dispatch:
 
 permissions:
-  id-token: write        # for OIDC
+  id-token: write         # required for OIDC
   contents: read
 
 jobs:
@@ -12,18 +14,20 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Azure Login
-      uses: Azure/login@v2           # marketplace action
+    # 1️⃣ Log in with OIDC and prime an Az PowerShell session
+    - name: Azure Login (OIDC)
+      uses: Azure/login@v2
       with:
         client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id:  ${{ secrets.AZURE_TENANT_ID }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: true        # ← **critical line**
 
-    - name: Run PowerShell
-      uses: Azure/powershell@v1      # GitHub Action for Az PowerShell :contentReference[oaicite:2]{index=2}
-      with:
-        inlineScript: |
-          Import-Module Az.Accounts
-          Connect-AzAccount -Identity
-          ./create-vm.ps1 -RgName 'rg-pwsh-demo' -VmName 'demo-vm-ci' -Location 'westus2'
-        azPSVersion: "latest"
+    # 2️⃣ Run your PowerShell script — no Connect-AzAccount needed
+    - name: Run create-vm.ps1
+      run: |
+        ./create-vm.ps1 `
+          -RgName 'rg-pwsh-demo' `
+          -VmName 'demo-vm-ci' `
+          -Location 'westus2'
+      shell: pwsh
