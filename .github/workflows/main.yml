@@ -6,13 +6,13 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write   # for OIDC login
+  id-token: write
   contents: read
 
 env:
   RG_NAME:  rg-pwsh-demo
   VM_NAME:  demo-vm-ci
-  LOCATION: westus2      # change region if needed
+  LOCATION: westus2          # change if you like
 
 jobs:
   deploy:
@@ -21,19 +21,27 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Azure login (OIDC)
+    # 1️⃣  Secure OIDC login
+    - name: Azure login
       uses: Azure/login@v2
       with:
         client-id:       ${{ secrets.AZURE_CLIENT_ID }}
         tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        enable-AzPSSession: true   # pre-loads Az modules
 
+    # 2️⃣  Install Az modules once per runner
+    - name: Install Az modules
+      shell: pwsh
+      run: |
+        Install-Module Az.Accounts,Az.Resources,Az.Compute `
+                       -Scope CurrentUser -Force -Repository PSGallery
+
+    # 3️⃣  Run deploy script
     - name: Deploy VM
       shell: pwsh
       env:
-        VM_ADMIN_PWD: ${{ secrets.VM_ADMIN_PWD }}   # ← add this secret
-        # VM_ADMIN_USER is optional (defaults to azureuser)
+        VM_ADMIN_PWD: ${{ secrets.VM_ADMIN_PWD }}   # required
+        # VM_ADMIN_USER optional (defaults to azureuser)
       run: |
         ./create-vm.ps1 `
           -RgName   $env:RG_NAME `
