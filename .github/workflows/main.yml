@@ -1,0 +1,27 @@
+name: PS-VM-Create
+
+on: [push]
+
+permissions:
+  id-token: write        # for OIDC
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: Azure/login@v2           # marketplace action
+      with:
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id:  ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Run PowerShell
+      uses: Azure/powershell@v1      # GitHub Action for Az PowerShell :contentReference[oaicite:2]{index=2}
+      with:
+        inlineScript: |
+          ./create-vm.ps1 -RgName 'rg-pwsh-demo' -VmName 'demo-vm-ci'
+        azPSVersion: "latest"
