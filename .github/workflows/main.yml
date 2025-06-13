@@ -5,34 +5,29 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write       # OIDC
+  id-token: write
   contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v4
 
-    # 1️⃣ OIDC login – no secrets or passwords needed
-    - name: Azure Login (OIDC)
+    # 1️⃣ OIDC login + pre-authenticated Az PowerShell session
+    - name: Azure Login
       uses: Azure/login@v2
       with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        client-id:      ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id:      ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: true     # ← key line
 
-    # 2️⃣ Run your PowerShell script in Azure/powershell@v1
-    - name: Run create-vm.ps1
-      uses: Azure/powershell@v1
-      with:
-        azPSVersion: "latest"          # installs / loads Az modules for you
-        inlineScript: |
-          # Import Az.* modules explicitly (defensive)
-          Import-Module Az.Accounts,Az.Resources,Az.Compute -ErrorAction Stop
-          # Everything is already logged-in by Azure/login, no Connect-AzAccount calls needed
-          ./create-vm.ps1 `
-            -RgName 'rg-pwsh-demo' `
-            -VmName 'demo-vm-ci' `
-            -Location 'westus2'
+    # 2️⃣ Run your script in the *same* session (Az cmdlets already loaded & logged in)
+    - name: Create VM
+      run: |
+        ./create-vm.ps1 `
+          -RgName 'rg-pwsh-demo' `
+          -VmName 'demo-vm-ci' `
+          -Location 'westus2'
+      shell: pwsh
