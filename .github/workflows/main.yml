@@ -1,40 +1,30 @@
-name: simple-ps-az
+name: deploy-vm-azps
 
 on:
   push:
   workflow_dispatch:
 
 permissions:
-  id-token: write     # for OIDC
+  id-token: write        # OIDC
   contents: read
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    # 1. OIDC login (no secrets/keys needed beyond the three in repo settings)
-    - name: Azure Login
+    # 1️⃣  OIDC login + fully-loaded Az PowerShell session
+    - name: Azure login (OIDC, Az session)
       uses: Azure/login@v2
       with:
-        client-id:      ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id:      ${{ secrets.AZURE_TENANT_ID }}
+        client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+        tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
         subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        enable-AzPSSession: true    # ← this downloads Az and keeps auth in the same shell
 
-    # 2. Run PowerShell inside the Az-enabled container, then auth with the same OIDC token
-    - name: Deploy VM with PowerShell
-      uses: Azure/powershell@v1
-      with:
-        azPSVersion: "latest"
-        inlineScript: |
-          #—— authenticate in this container with the federated token ——#
-          $token = Get-Content -Raw $env:AZURE_FEDERATED_TOKEN_FILE
-          Connect-AzAccount -ServicePrincipal `
-                            -TenantId       $env:AZURE_TENANT_ID `
-                            -ApplicationId  $env:AZURE_CLIENT_ID `
-                            -FederatedToken $token
-
-          #—— run the deployment script ——#
-          Import-Module Az.Resources,Az.Compute -ErrorAction Stop
-          ./create-vm.ps1 -RgName 'rg-pwsh-demo' -VmName 'demo-vm-ci' -Location 'westus2'
+    # 2️⃣  Run the script in that same session — no extra Connect-AzAccount needed
+    - name: Run create-vm.ps1
+      shell: pwsh
+      run: |
+        ./create-vm.ps1 -RgName 'rg-pwsh-demo' -VmName 'demo-vm-ci' -Location 'westus2'
