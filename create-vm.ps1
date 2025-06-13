@@ -1,9 +1,9 @@
 param(
   [string]$RgName = "rg-pwsh-demo",
-  [string]$Location = "canadacentral",
+  [string]$Location = "westus2",
   [string]$VmName = "demo-vm-from-ps",
   [string]$AdminUsername = "azureuser",
-  [string]$AdminPassword = "P@ssw0rd123!"  # use a strong one in real use
+  [string]$AdminPassword = "P@ssw0rd123!"
 )
 
 # Convert password to secure string
@@ -15,10 +15,10 @@ if (-not (Get-AzResourceGroup -Name $RgName -ErrorAction SilentlyContinue)) {
     New-AzResourceGroup -Name $RgName -Location $Location
 }
 
-# Create VM
+# Create the VM
 New-AzVM -ResourceGroupName $RgName `
          -Name $VmName `
          -Location $Location `
-         -Size "Standard_B1s" `
+         -Size "Standard_D2s_v3" `
          -Image "Canonical:0001-com-ubuntu-server-jammy:22_04-lts:latest" `
          -Credential $cred
